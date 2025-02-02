@@ -2,12 +2,12 @@ import { useState } from 'react';
 import axios from 'axios';
 
 function App() {
-  const [question, setQuestion] = useState<string>('');
-  const [response, setResponse] = useState<object[] | null>(null);
+  const [question, setQuestion] = useState('');
+  const [response, setResponse] = useState(null);
 
   const handleAsk = async () => {
     try {
-      const result = await axios.post<object[]>('http://coycafe.ddns.net:3000/ask', {
+      const result = await axios.post('http://coycafe.ddns.net:3000/ask', {
         question: question,
       });
       setResponse(result.data);
@@ -16,47 +16,73 @@ function App() {
     }
   };
 
-  const renderTableHeaders = (data: object) => {
+  const handleShowHistory = async () => {
+    try {
+      const result = await axios.get('http://coycafe.ddns.net:3001/events/latest');
+      // console.log(result);
+      setResponse(result.data);
+    } catch (error) {
+      console.error('Error fetching event history:', error);
+    }
+  };
+
+  const renderTableHeaders = (data) => {
     return Object.keys(data).map((key) => (
-      <th align="left" key={key} className="border-b border-gray-400 p-2 text-left capitalize">
-        { key.charAt(0).toUpperCase() + key.slice(1).toLowerCase() }
+      <th key={key} className="align-top">
+        {key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()}
       </th>
     ));
   };
 
-  const renderTableRow = (item: object) => {
+  const renderTableRow = (item) => {
     return Object.entries(item).map(([key, value]) => (
-      <td key={key} className="border-b border-gray-400 p-2 text-left">
-        {key.includes('date') || key.includes('time')
-          ? new Date(value as string).toLocaleString()
-          : value.toString()}
+      <td key={key} className="align-top">
+        {key.includes('date') || key.includes('time') ? (
+          (() => {
+            try {
+              const date = new Date(value);
+              if (isNaN(date.getTime())) {
+                throw new Error('Invalid Date');
+              }
+              return date.toLocaleString();
+            } catch (error) {
+              console.error('Date parsing error for value:', value, 'Error:', error);
+              return 'Invalid Date';
+            }
+          })()
+        ) : (
+          value
+        )}
       </td>
     ));
   };
 
   return (
-    <div className="min-h-screen bg-white text-blue-700 p-6">
-      <h1 className="text-3xl font-semibold mb-4">Quick Patient Information</h1>
+    <div className="container my-4">
+      <h1 className="mb-4">Quick Patient Information</h1>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="Ask your question here..."
-          className="w-full h-24 p-2 border border-blue-300 rounded"
+          className="form-control"
+          rows="4"
         />
       </div>
 
-      <button
-        onClick={handleAsk}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        Ask
-      </button>
+      <div className="mb-4">
+        <button onClick={handleAsk} className="btn btn-primary me-2">
+          Ask
+        </button>
+        <button onClick={handleShowHistory} className="btn btn-secondary">
+          Show History
+        </button>
+      </div>
 
-      <div className="mt-6">
+      <div className="mt-3">
         {response && response.length > 0 ? (
-          <table className="w-full border-collapse">
+          <table className="table table-bordered table-striped">
             <thead>
               <tr>{renderTableHeaders(response[0])}</tr>
             </thead>
@@ -67,7 +93,7 @@ function App() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-500">No data available.</p>
+          <p className="text-muted">No data available.</p>
         )}
       </div>
     </div>
